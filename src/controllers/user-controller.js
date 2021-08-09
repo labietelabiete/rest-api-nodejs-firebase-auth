@@ -1,114 +1,120 @@
 const db = require("../models");
-const { encryptString } = require("../utils/encrypt");
+const { encryptString, compareEncrypted } = require("../utils/encrypt");
+const { generateToken } = require("../services/auth/generate-access-token");
+const { sessionData } = require("../session/session");
+const randtoken = require("rand-token");
 
-async function signUp(req, res, next) {
-  const { email, password, firstName, lastName } = req.body;
+async function register(req, res, next) {
+  const { name, surname, email, password } = req.body;
 
   try {
     const encryptedPassword = await encryptString(password);
+
     const { _id } = await db.User.create({
+      name: name,
+      surname: surname,
       email: email,
       password: encryptedPassword,
-      firstName: firstName,
-      lastName: lastName,
-      active: true,
     });
 
-    return res.status(200).send({
-      id: _id,
-      email,
+    return res.status(201).send({
+      message: "User created successfully!",
+      data: {
+        id: _id,
+      },
     });
   } catch (err) {
-    console.log(err);
-    next(err);
+    return res.status(500).send({
+      error: err,
+    });
   }
 }
 
-async function fetchUsers(req, res, next) {
-  try {
-    const users = await db.User.find().lean();
-
-    res.status(200).send({
-      data: users,
-    });
-  } catch (error) {
-    next(error);
-  }
-}
-
-async function fetchUserById(req, res, next) {
-  const {
-    params: { id: userId },
-  } = req;
+async function signIn(req, res, next) {
+  const { email, password } = req.body;
 
   try {
-    const user = await db.User.findById(userId).lean();
+    const user = await db.User.findOne({ email: email });
 
-    res.status(200).send({
-      data: user,
-    });
-  } catch (error) {
-    next(error);
-  }
-}
-
-async function updateUser(req, res, next) {
-  const { id: userId } = req.params;
-  const { firstName, lastName } = req.body;
-
-  try {
-    const updatedUser = await db.User.findOneAndUpdate(
-      {
-        _id: userId,
-      },
-      {
-        $set: {
-          firstName: firstName,
-          lastName: lastName,
-        },
-      },
-      {
-        new: true,
-      },
-    ).select({
-      firstName: 1,
-      lastName: 1,
-    });
-
-    res.status(200).send({
-      data: updatedUser,
-    });
-  } catch (error) {
-    next(error);
-  }
-}
-
-async function deleteUser(req, res, next) {
-  const { id: userId } = req.params;
-
-  try {
-    const result = await db.User.deleteOne({
-      _id: userId,
-    }).lean();
-
-    if (result.ok === 1 && result.deletedCount === 1) {
-      res.status(200).send({
-        data: "User removed",
+    if (user) {
+      const isValid = await compareEncrypted({
+        plainData: password,
+        encryptedData: user.password,
       });
+      if (isValid) {
+        const accessToken = generateToken({ email: user.email });
+        const refreshToken = randtoken.generate(256);
+
+        sessionData.refreshTokens[refreshToken] = user.email;
+
+        return res.status(200).send({
+          isSuccessful: true,
+          accessToken: accessToken,
+          refreshToken: refreshToken,
+          id: user._id,
+        });
+      } else {
+        return res.status(401).send({
+          error: "Invalid Credentials",
+        });
+      }
     } else {
-      res.status(500).send({
-        data: "User not removed",
+      return res.status(401).send({
+        error: "Invalid Credentials",
       });
     }
-  } catch (error) {
-    next(error);
+  } catch (err) {
+    return res.status(500).send({
+      isSuccessful: false,
+      error: err,
+    });
+  }
+}
+
+async function refreshToken(req, res, next) {
+  const { email, refreshToken } = req.body;
+
+  try {
+    console.log(sessionData.refreshTokens[refreshToken] == email);
+
+    if (
+      refreshToken in sessionData.refreshTokens &&
+      sessionData.refreshTokens[refreshToken] == email
+    ) {
+      const accessToken = generateToken({ email: email });
+
+      return res.status(200).send({
+        isSuccessful: true,
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+      });
+    } else {
+      return res.status(500).send({
+        error: "Something went wrong! 2",
+      });
+    }
+  } catch (err) {
+    // console.log(err);
+    return res.status(500).send({
+      error: err.message,
+    });
+  }
+}
+
+async function getUsers(req, res, next) {
+  try {
+    const users = await db.User.find();
+    return res.status(200).send({
+      users: users,
+    });
+  } catch (err) {
+    return res.status(500).send("error");
   }
 }
 
 module.exports = {
-  signUp: signUp,
-  fetchUsers: fetchUsers,
-  fetchUserById: fetchUserById,
-  updateUser: updateUser,
-  deleteUser: deleteUser,
+  register: register,
+  signIn: signIn,
+  refreshToken: refreshToken,
+  getUsers: getUsers,
 };

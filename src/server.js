@@ -1,25 +1,21 @@
 const express = require("express");
 const helmet = require("helmet");
-const morgan = require("morgan");
 const { json } = require("body-parser");
 
-const { accountRouter, userRouter } = require("./routes");
-const { errorMiddleware } = require("./middlewares");
+const { userRouter } = require("./routes/user-routes");
+const { authRouter } = require("./routes/account-routes");
 const app = express();
 
-app.use(morgan("dev"));
 app.use(helmet());
 app.use(json());
 
-app.use("/account", accountRouter);
 app.use("/users", userRouter);
+app.use("/account", authRouter);
 
 app.get("/", (req, res) => {
   res.status(200).send({
-    data: "hello-world",
+    message: "Hello World Default",
   });
 });
-
-app.use(errorMiddleware);
 
 module.exports = app;
