@@ -4,7 +4,7 @@ const { userController } = require("../controllers");
 const { authMiddleware } = require("../middlewares");
 const userRouter = Router();
 
-userRouter.get("/", userController.getUsers);
+userRouter.get("/", authMiddleware, userController.getUsers);
 
 userRouter.get("/:id", (req, res) => {
   res.status(200).send({

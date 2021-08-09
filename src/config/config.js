@@ -23,6 +23,9 @@ const CONFIG = {
     db: {
       url: MONGO_DB_URL_PRODUCTION,
     },
+    auth: {
+      secret: ACCESS_TOKEN_SECRET,
+    },
     encrypt: {
       salt: ENCRYPTION_SALT_PRODUCTION,
     },
@@ -34,6 +37,9 @@ const CONFIG = {
     db: {
       url: MONGO_DB_URL_DEVELOPMENT,
     },
+    auth: {
+      secret: ACCESS_TOKEN_SECRET,
+    },
     encrypt: {
       salt: ENCRYPTION_SALT_DEVELOPMENT,
     },
@@ -44,6 +50,9 @@ const CONFIG = {
     },
     db: {
       url: MONGO_DB_URL_TEST,
+    },
+    auth: {
+      secret: ACCESS_TOKEN_SECRET,
     },
     encrypt: {
       salt: ENCRYPTION_SALT_DEVELOPMENT,
